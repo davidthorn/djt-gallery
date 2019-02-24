@@ -6,9 +6,11 @@ var GalleryKeys;
     GalleryKeys["gallery"] = "[gallery]";
     GalleryKeys["buttons"] = "[gallery-ref]";
     GalleryKeys["ref"] = "gallery-ref";
+    GalleryKeys["leftArrowClassName"] = "left-arrow";
+    GalleryKeys["curtainSelector"] = ".gallery-curtain";
 })(GalleryKeys || (GalleryKeys = {}));
 const createGalleryElement = (config, parent) => {
-    const { id, className, attributes, children, onClick, onAdded, ref, refs } = config;
+    const { id, className, attributes, children, onClick, onAdded, ref, refs, content } = config;
     if (refs === undefined) {
         config.refs = {};
     }
@@ -51,6 +53,9 @@ const createGalleryElement = (config, parent) => {
     if (onAdded !== undefined) {
         const cb = onAdded.bind(config);
         cb(element, config.refs);
+    }
+    if (content !== undefined) {
+        element.innerHTML = content;
     }
     return element;
 };
@@ -104,6 +109,11 @@ const convertElement = (element) => {
         }
     };
 };
+/**
+ * Returns all GalleryElem
+ *
+ * @returns {GalleryElement[]}
+ */
 const getGalleries = () => {
     const galleryElements = document.querySelectorAll(GalleryKeys.gallery);
     return elements(galleryElements).map(convertElement);
@@ -148,26 +158,18 @@ const showGallery = (gallery) => {
                     const prevUrl = gallery.prev();
                     if (prevUrl === undefined)
                         throw new Error('left button should be hidden');
-                    switch (gallery.index % 2 === 0) {
-                        case true: // active image is active
-                            refs.nextImage.element.className = 'gallery-image-next fade-out';
-                            refs.activeImage.element.className = 'gallery-image-next fade-in';
-                            break;
-                        case false: // next image is active
-                            refs.nextImage.element.className = 'gallery-image-next fade-in';
-                            refs.activeImage.element.className = 'gallery-image-next fade-out';
-                            break;
-                    }
-                    if (gallery.index < gallery.imageUrls.length - 1) {
-                        refs.rightButton.element.setAttribute('style', 'display: block;');
-                    }
-                    if (gallery.index === 0) {
-                        refs.leftButton.element.setAttribute('style', 'display: none;');
-                    }
+                    toggleActiveImage(gallery, refs);
                 },
                 onAdded: (element) => {
                     element.setAttribute('style', 'display: none');
-                }
+                },
+                children: [
+                    {
+                        tag: 'span',
+                        className: 'left-arrow',
+                        content: '<'
+                    }
+                ]
             },
             {
                 ref: 'rightButton',
@@ -177,23 +179,15 @@ const showGallery = (gallery) => {
                     const nextUrl = gallery.next();
                     if (nextUrl === undefined)
                         throw new Error('right button should be hidden');
-                    switch (gallery.index % 2 === 0) {
-                        case true: // active image is active
-                            refs.nextImage.element.className = 'gallery-image-next fade-out';
-                            refs.activeImage.element.className = 'gallery-image-next fade-in';
-                            break;
-                        case false: // next image is active
-                            refs.nextImage.element.className = 'gallery-image-next fade-in';
-                            refs.activeImage.element.className = 'gallery-image-next fade-out';
-                            break;
+                    toggleActiveImage(gallery, refs);
+                },
+                children: [
+                    {
+                        tag: 'span',
+                        className: 'left-arrow',
+                        content: '>'
                     }
-                    if (gallery.index === gallery.imageUrls.length - 1) {
-                        refs.rightButton.element.setAttribute('style', 'display: none;');
-                    }
-                    if (gallery.index > 0) {
-                        refs.leftButton.element.setAttribute('style', 'display: block;');
-                    }
-                }
+                ]
             },
             {
                 ref: 'loader',
@@ -239,17 +233,25 @@ const showGallery = (gallery) => {
                 }
             },
             {
-                ref: 'backButton',
+                ref: 'closeButton',
                 tag: 'div',
                 className: 'gallery-close-button',
                 onClick: function () {
-                    document.querySelectorAll('.gallery-curtain').forEach(i => {
+                    document.querySelectorAll(GalleryKeys.curtainSelector).forEach(i => {
                         i.className = `${i.className} fade-out`;
                         setTimeout(() => {
+                            gallery.index = 0;
                             i.remove();
                         }, 1000);
                     });
-                }
+                },
+                children: [
+                    {
+                        tag: 'span',
+                        className: 'close-icon',
+                        content: 'x'
+                    }
+                ]
             }
         ]
     }, document.body);
@@ -259,3 +261,27 @@ const loadGalleryElements = () => {
     const buttons = getGalleryButtons();
 };
 window.addEventListener('load', loadGalleryElements);
+function toggleActiveImage(gallery, refs) {
+    switch (gallery.index % 2 === 0) {
+        case true: // active image is active
+            refs.nextImage.element.className = 'gallery-image-next fade-out';
+            refs.activeImage.element.className = 'gallery-image-next fade-in';
+            break;
+        case false: // next image is active
+            refs.nextImage.element.className = 'gallery-image-next fade-in';
+            refs.activeImage.element.className = 'gallery-image-next fade-out';
+            break;
+    }
+    if (gallery.index < gallery.imageUrls.length - 1) {
+        refs.rightButton.element.setAttribute('style', 'display: flex;');
+    }
+    else {
+        refs.rightButton.element.setAttribute('style', 'display: none;');
+    }
+    if (gallery.index === 0) {
+        refs.leftButton.element.setAttribute('style', 'display: none;');
+    }
+    else {
+        refs.leftButton.element.setAttribute('style', 'display: flex;');
+    }
+}
