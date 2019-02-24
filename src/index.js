@@ -139,6 +139,12 @@ const getImageUrls = (element) => {
         return [];
     return ref.split(',');
 };
+/**
+ * Convert this element to a GalleryElement object
+ *
+ * @param {Element} element
+ * @returns {GalleryElement}
+ */
 const convertElement = (element) => {
     if (element.getAttribute(GalleryKeys.id) === null) {
         element.setAttribute(GalleryKeys.id, uuid(10));
