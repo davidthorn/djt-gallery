@@ -9,6 +9,45 @@ var GalleryKeys;
     GalleryKeys["leftArrowClassName"] = "left-arrow";
     GalleryKeys["curtainSelector"] = ".gallery-curtain";
 })(GalleryKeys || (GalleryKeys = {}));
+class Gallery {
+    constructor(element, imageUrls, id) {
+        this.imageUrls = [];
+        this.index = 0;
+        this.dimensions = element.getBoundingClientRect();
+        this.id = id;
+        this.active = false;
+        this.imageUrls = imageUrls;
+        this.element = element;
+    }
+    next() {
+        if (this.hasNextImage()) {
+            this.index += 1;
+            return this.imageUrls[this.index];
+        }
+        return undefined;
+    }
+    prev() {
+        if (this.hasPreviousImage()) {
+            this.index -= 1;
+            return this.imageUrls[this.index];
+        }
+        return undefined;
+    }
+    hasNextImage() {
+        return this.hasImage(this.index + 1);
+    }
+    hasPreviousImage() {
+        return this.hasImage(this.index - 1);
+    }
+    hasActiveImage() {
+        return this.hasImage(this.index);
+    }
+    hasImage(index) {
+        if (index < 0)
+            return false;
+        return index <= this.imageUrls.length - 1;
+    }
+}
 const createGalleryElement = (config, parent) => {
     const { id, className, attributes, children, onClick, onAdded, ref, refs, content } = config;
     if (refs === undefined) {
@@ -59,6 +98,12 @@ const createGalleryElement = (config, parent) => {
     }
     return element;
 };
+/**
+ * Creates a string containing only random upper and lower case letters
+ *
+ * @param {number} length
+ * @returns {string}
+ */
 const uuid = (length) => {
     const items = [...Array(length).keys()];
     return items.map(i => {
@@ -68,6 +113,12 @@ const uuid = (length) => {
         return String.fromCharCode(char + code);
     }).join('');
 };
+/**
+ * Converts a NodeListOf<Element> to a standard array
+ *
+ * @param {NodeListOf<Element>} list
+ * @returns {Element[]}
+ */
 const elements = (list) => {
     let items = [];
     list.forEach(i => [
@@ -75,6 +126,13 @@ const elements = (list) => {
     ]);
     return items;
 };
+/**
+ * Retrieves all images urls from the images attribute of this element
+ * Returns an empty array is the attribute is not found
+ *
+ * @param {Element} element
+ * @returns {string[]}
+ */
 const getImageUrls = (element) => {
     const ref = element.getAttribute(GalleryKeys.image);
     if (ref === null)
@@ -86,28 +144,7 @@ const convertElement = (element) => {
         element.setAttribute(GalleryKeys.id, uuid(10));
     }
     element.setAttribute('style', 'display: none');
-    return {
-        dimensions: element.getBoundingClientRect(),
-        id: element.getAttribute(GalleryKeys.id),
-        active: false,
-        imageUrls: getImageUrls(element),
-        element,
-        index: 0,
-        next() {
-            if ((this.index + 1) <= this.imageUrls.length - 1) {
-                this.index += 1;
-                return this.imageUrls[this.index];
-            }
-            return undefined;
-        },
-        prev() {
-            if ((this.index - 1) >= 0) {
-                this.index -= 1;
-                return this.imageUrls[this.index];
-            }
-            return undefined;
-        }
-    };
+    return new Gallery(element, getImageUrls(element), element.getAttribute(GalleryKeys.id));
 };
 /**
  * Returns all GalleryElem
@@ -141,6 +178,103 @@ const convertButtonElement = (element) => {
         gallery
     };
 };
+const PreviousImageButton = function (gallery) {
+    return {
+        ref: 'leftButton',
+        tag: 'div',
+        className: 'gallery-left-button',
+        onClick: (event, refs) => {
+            const prevUrl = gallery.prev();
+            if (prevUrl === undefined)
+                throw new Error('previous button should be hidden');
+            toggleActiveImage(gallery, refs);
+        },
+        onAdded: (element) => {
+            element.setAttribute('style', 'display: none');
+        },
+        children: [
+            {
+                tag: 'span',
+                className: 'left-arrow',
+                content: '<'
+            }
+        ]
+    };
+};
+const GalleryImage = function (gallery, active, index) {
+    return {
+        ref: active == true ? 'activeImage' : 'nextImage',
+        tag: 'img',
+        className: `gallery-image-${active ? 'active' : 'next'} ${active ? 'fade-in' : 'fade-out'}`,
+        attributes: {
+            index: index.toString()
+        },
+        onAdded: function (imageElement, refs) {
+            const elem = imageElement;
+            const index = parseInt(imageElement.getAttribute('index'));
+            if (!gallery.hasImage(index))
+                return;
+            elem.onload = function () {
+                refs.loader.element.remove();
+            };
+            elem.src = gallery.imageUrls[index];
+        }
+    };
+};
+const ActiveImage = function (gallery) {
+    return GalleryImage(gallery, true, 0);
+};
+const NextImage = function (gallery) {
+    return GalleryImage(gallery, false, 1);
+};
+const NextImageButton = function (gallery) {
+    return {
+        ref: 'rightButton',
+        tag: 'div',
+        className: 'gallery-right-button',
+        onClick: (event, refs) => {
+            const nextUrl = gallery.next();
+            if (nextUrl === undefined)
+                throw new Error('next button should be hidden');
+            toggleActiveImage(gallery, refs);
+        },
+        onAdded: (element) => {
+            if (!gallery.hasNextImage()) {
+                element.setAttribute('style', 'display: none');
+            }
+        },
+        children: [
+            {
+                tag: 'span',
+                className: 'left-arrow',
+                content: '>'
+            }
+        ]
+    };
+};
+const CloseButton = function (gallery) {
+    return {
+        ref: 'closeButton',
+        tag: 'div',
+        className: 'gallery-close-button',
+        onClick: function () {
+            document.querySelectorAll(GalleryKeys.curtainSelector).forEach(i => {
+                i.className = `${i.className} fade-out`;
+                setTimeout(() => {
+                    gallery.index = 0;
+                    i.remove();
+                }, 1000);
+            });
+        },
+        children: [
+            {
+                tag: 'span',
+                className: 'close-icon',
+                content: 'x'
+            }
+        ]
+    };
+};
 const showGallery = (gallery) => {
     createGalleryElement({
         tag: 'div',
@@ -149,45 +283,6 @@ const showGallery = (gallery) => {
             {
                 tag: 'div',
                 className: 'gallery-inner'
-            },
-            {
-                ref: 'leftButton',
-                tag: 'div',
-                className: 'gallery-left-button',
-                onClick: (event, refs) => {
-                    const prevUrl = gallery.prev();
-                    if (prevUrl === undefined)
-                        throw new Error('left button should be hidden');
-                    toggleActiveImage(gallery, refs);
-                },
-                onAdded: (element) => {
-                    element.setAttribute('style', 'display: none');
-                },
-                children: [
-                    {
-                        tag: 'span',
-                        className: 'left-arrow',
-                        content: '<'
-                    }
-                ]
-            },
-            {
-                ref: 'rightButton',
-                tag: 'div',
-                className: 'gallery-right-button',
-                onClick: (event, refs) => {
-                    const nextUrl = gallery.next();
-                    if (nextUrl === undefined)
-                        throw new Error('right button should be hidden');
-                    toggleActiveImage(gallery, refs);
-                },
-                children: [
-                    {
-                        tag: 'span',
-                        className: 'left-arrow',
-                        content: '>'
-                    }
-                ]
             },
             {
                 ref: 'loader',
@@ -200,59 +295,11 @@ const showGallery = (gallery) => {
                     }
                 ]
             },
-            {
-                ref: 'activeImage',
-                tag: 'img',
-                className: 'gallery-image-active fade-in',
-                attributes: {
-                    index: '0'
-                },
-                onAdded: function (imageElement, refs) {
-                    const elem = imageElement;
-                    const index = imageElement.getAttribute('index');
-                    elem.onload = function () {
-                        refs.loader.element.remove();
-                    };
-                    elem.src = gallery.imageUrls[parseInt(index)];
-                }
-            },
-            {
-                ref: 'nextImage',
-                tag: 'img',
-                className: 'gallery-image-next fade-out',
-                attributes: {
-                    index: '1'
-                },
-                onAdded: (imageElement, refs) => {
-                    const elem = imageElement;
-                    const index = imageElement.getAttribute('index');
-                    elem.onload = function () {
-                        refs.loader.element.remove();
-                    };
-                    elem.src = gallery.imageUrls[parseInt(index)];
-                }
-            },
-            {
-                ref: 'closeButton',
-                tag: 'div',
-                className: 'gallery-close-button',
-                onClick: function () {
-                    document.querySelectorAll(GalleryKeys.curtainSelector).forEach(i => {
-                        i.className = `${i.className} fade-out`;
-                        setTimeout(() => {
-                            gallery.index = 0;
-                            i.remove();
-                        }, 1000);
-                    });
-                },
-                children: [
-                    {
-                        tag: 'span',
-                        className: 'close-icon',
-                        content: 'x'
-                    }
-                ]
-            }
+            PreviousImageButton(gallery),
+            NextImageButton(gallery),
+            ActiveImage(gallery),
+            NextImage(gallery),
+            CloseButton(gallery)
         ]
     }, document.body);
 };
@@ -272,7 +319,7 @@ function toggleActiveImage(gallery, refs) {
             refs.activeImage.element.className = 'gallery-image-next fade-out';
             break;
     }
-    if (gallery.index < gallery.imageUrls.length - 1) {
+    if (gallery.hasImage(gallery.index + 1)) {
         refs.rightButton.element.setAttribute('style', 'display: flex;');
     }
     else {
