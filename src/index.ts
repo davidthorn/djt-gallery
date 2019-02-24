@@ -226,16 +226,33 @@ const getGalleries = (): GalleryElement[] => {
     return elements(galleryElements).map(convertElement)
 }
 
+/**
+ *
+ *
+ * @returns {GalleryButton[]}
+ */
 const getGalleryButtons = (): GalleryButton[] => {
     const galleryButtonElements = document.querySelectorAll(GalleryKeys.buttons)
     return elements(galleryButtonElements).map(convertButtonElement).filter(i => { return i !== undefined }).map(i => i!)
 }
 
+/**
+ *
+ *
+ * @param {string} id
+ * @returns {(GalleryElement | undefined)}
+ */
 const getGallery = (id: string): GalleryElement | undefined => {
     const galleryElements = getGalleries().filter(i => { return i.id === id })
     return galleryElements.length > 0 ? galleryElements[0] : undefined
 }
 
+/**
+ *
+ *
+ * @param {Element} element
+ * @returns {(GalleryButton | undefined)}
+ */
 const convertButtonElement = (element: Element): GalleryButton | undefined => {
     const id = element.getAttribute(GalleryKeys.ref)
     if (id === null) return undefined
@@ -250,8 +267,14 @@ const convertButtonElement = (element: Element): GalleryButton | undefined => {
     }
 }
 
-
-
+/**
+ *
+ *
+ * @param {GalleryElement} gallery
+ * @param {boolean} active
+ * @param {number} index
+ * @returns {ElementConfig}
+ */
 const GalleryImage: (gallery: GalleryElement, active: boolean, index: number) => ElementConfig = function (gallery: GalleryElement, active: boolean, index: number): ElementConfig {
     return {
         ref: active == true ? 'activeImage' : 'nextImage',
@@ -263,31 +286,30 @@ const GalleryImage: (gallery: GalleryElement, active: boolean, index: number) =>
         onAdded: function (imageElement, refs) {
             const elem = imageElement as HTMLImageElement
             const index = parseInt(imageElement.getAttribute('index')!)
+            console.log(gallery.imageUrls[index])
             const imageUrl = gallery.imageUrls[index]
-            elem.onload = function () {
-                refs.loader.element.remove()
-            }
-            elem.onerror = (error: any) => {
-                console.log(error)
-            }
-            fetch(imageUrl).then(async (l) => {
-                const _url = await l.blob()
-                const blobUrl = URL.createObjectURL(_url)
-                elem.src = blobUrl
-                toggleButtons(gallery , refs)
-            })
+            loadGalleryImage(imageUrl , elem , refs , gallery)
         }
     }
 }
 
+/**
+ *
+ *
+ * @param {GalleryElement} gallery
+ * @returns {ElementConfig}
+ */
 const ActiveImage: (gallery: GalleryElement) => ElementConfig = function (gallery: GalleryElement): ElementConfig {
     return GalleryImage(gallery, true, 0)
 }
 
-const NextImage: (gallery: GalleryElement) => ElementConfig = function (gallery: GalleryElement): ElementConfig {
-    return GalleryImage(gallery, false, 1)
-}
-
+/**
+ *
+ *
+ * @param {GalleryElement} gallery
+ * @param {(refs: { [key:string] : any }) => HTMLImageElement} imageElement
+ * @returns {ElementConfig}
+ */
 const PreviousImageButton: (gallery: GalleryElement, imageElement: (refs: { [key:string] : any }) => HTMLImageElement) => ElementConfig = function (gallery: GalleryElement, imageElement:  (refs: { [key:string] : any }) => HTMLImageElement): ElementConfig {
     return {
         ref: 'leftButton',
@@ -309,6 +331,13 @@ const PreviousImageButton: (gallery: GalleryElement, imageElement: (refs: { [key
     }
 }
 
+/**
+ *
+ *
+ * @param {GalleryElement} gallery
+ * @param {(refs: { [key:string] : any }) => HTMLImageElement} imageElement
+ * @returns {ElementConfig}
+ */
 const NextImageButton: (gallery: GalleryElement, imageElement: (refs: { [key:string] : any }) => HTMLImageElement) => ElementConfig = function (gallery: GalleryElement, imageElement: (refs: { [key:string] : any }) => HTMLImageElement): ElementConfig {
     return {
         ref: 'rightButton',
@@ -332,6 +361,12 @@ const NextImageButton: (gallery: GalleryElement, imageElement: (refs: { [key:str
     }
 }
 
+/**
+ *
+ *
+ * @param {GalleryElement} gallery
+ * @returns {ElementConfig}
+ */
 const CloseButton: (gallery: GalleryElement) => ElementConfig = function (gallery: GalleryElement): ElementConfig {
     return {
         ref: 'closeButton',
@@ -357,6 +392,11 @@ const CloseButton: (gallery: GalleryElement) => ElementConfig = function (galler
 }
 
 
+/**
+ *
+ *
+ * @param {GalleryElement} gallery
+ */
 const showGallery = (gallery: GalleryElement) => {
     createGalleryElement({
         tag: 'div',
@@ -389,12 +429,14 @@ const showGallery = (gallery: GalleryElement) => {
     }, document.body)
 }
 
+/**
+ *
+ *
+ */
 const loadGalleryElements = () => {
     const galleries = getGalleries()
     const buttons = getGalleryButtons()
 }
-
-window.addEventListener('load', loadGalleryElements)
 
 /**
  * Downloada the image from source url and once download updates the active image with this image data
@@ -405,22 +447,29 @@ window.addEventListener('load', loadGalleryElements)
  * @param {GalleryElement} gallery
  */
 function loadGalleryImage(sourceUrl: string | undefined, image: HTMLImageElement, refs: { [key: string]: any; }, gallery: GalleryElement) {
+    refs.loader.element.setAttribute('style' , 'display: flex;')
+    image.setAttribute('style' , 'fade-out')
     if (sourceUrl === undefined)
         throw new Error('next button should be hidden');
     image.onload = function () {
-        refs.loader.element.remove();
+        console.log('loaded')
+        refs.loader.element.setAttribute('style' , 'display: none')
+        image.setAttribute('style' , 'fade-in')
+        toggleButtons(gallery, refs);
     };
     image.onerror = (error: any) => {
-        console.log(error);
+        console.log('error' , error);
     };
-    fetch(sourceUrl).then(async (l) => {
-        const _url = await l.blob();
-        const blobUrl = URL.createObjectURL(_url);
-        image.src = blobUrl;
-        toggleButtons(gallery, refs);
-    });
+    
+    image.src = sourceUrl
 }
 
+/**
+ *
+ *
+ * @param {GalleryElement} gallery
+ * @param {{ [key: string]: any; }} refs
+ */
 function toggleButtons(gallery: GalleryElement, refs: { [key: string]: any; }) {
     if (gallery.hasImage(gallery.index + 1)) {
         refs.rightButton.element.setAttribute('style', 'display: flex;');
@@ -433,3 +482,5 @@ function toggleButtons(gallery: GalleryElement, refs: { [key: string]: any; }) {
         refs.leftButton.element.setAttribute('style', 'display: flex;');
     }
 }
+
+window.addEventListener('load', loadGalleryElements)

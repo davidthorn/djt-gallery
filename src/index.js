@@ -1,12 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var GalleryKeys;
 (function (GalleryKeys) {
     GalleryKeys["id"] = "gallery-id";
@@ -169,14 +161,31 @@ const getGalleries = () => {
     const galleryElements = document.querySelectorAll(GalleryKeys.gallery);
     return elements(galleryElements).map(convertElement);
 };
+/**
+ *
+ *
+ * @returns {GalleryButton[]}
+ */
 const getGalleryButtons = () => {
     const galleryButtonElements = document.querySelectorAll(GalleryKeys.buttons);
     return elements(galleryButtonElements).map(convertButtonElement).filter(i => { return i !== undefined; }).map(i => i);
 };
+/**
+ *
+ *
+ * @param {string} id
+ * @returns {(GalleryElement | undefined)}
+ */
 const getGallery = (id) => {
     const galleryElements = getGalleries().filter(i => { return i.id === id; });
     return galleryElements.length > 0 ? galleryElements[0] : undefined;
 };
+/**
+ *
+ *
+ * @param {Element} element
+ * @returns {(GalleryButton | undefined)}
+ */
 const convertButtonElement = (element) => {
     const id = element.getAttribute(GalleryKeys.ref);
     if (id === null)
@@ -192,6 +201,14 @@ const convertButtonElement = (element) => {
         gallery
     };
 };
+/**
+ *
+ *
+ * @param {GalleryElement} gallery
+ * @param {boolean} active
+ * @param {number} index
+ * @returns {ElementConfig}
+ */
 const GalleryImage = function (gallery, active, index) {
     return {
         ref: active == true ? 'activeImage' : 'nextImage',
@@ -203,28 +220,28 @@ const GalleryImage = function (gallery, active, index) {
         onAdded: function (imageElement, refs) {
             const elem = imageElement;
             const index = parseInt(imageElement.getAttribute('index'));
+            console.log(gallery.imageUrls[index]);
             const imageUrl = gallery.imageUrls[index];
-            elem.onload = function () {
-                refs.loader.element.remove();
-            };
-            elem.onerror = (error) => {
-                console.log(error);
-            };
-            fetch(imageUrl).then((l) => __awaiter(this, void 0, void 0, function* () {
-                const _url = yield l.blob();
-                const blobUrl = URL.createObjectURL(_url);
-                elem.src = blobUrl;
-                toggleButtons(gallery, refs);
-            }));
+            loadGalleryImage(imageUrl, elem, refs, gallery);
         }
     };
 };
+/**
+ *
+ *
+ * @param {GalleryElement} gallery
+ * @returns {ElementConfig}
+ */
 const ActiveImage = function (gallery) {
     return GalleryImage(gallery, true, 0);
 };
-const NextImage = function (gallery) {
-    return GalleryImage(gallery, false, 1);
-};
+/**
+ *
+ *
+ * @param {GalleryElement} gallery
+ * @param {(refs: { [key:string] : any }) => HTMLImageElement} imageElement
+ * @returns {ElementConfig}
+ */
 const PreviousImageButton = function (gallery, imageElement) {
     return {
         ref: 'leftButton',
@@ -245,6 +262,13 @@ const PreviousImageButton = function (gallery, imageElement) {
         ]
     };
 };
+/**
+ *
+ *
+ * @param {GalleryElement} gallery
+ * @param {(refs: { [key:string] : any }) => HTMLImageElement} imageElement
+ * @returns {ElementConfig}
+ */
 const NextImageButton = function (gallery, imageElement) {
     return {
         ref: 'rightButton',
@@ -267,6 +291,12 @@ const NextImageButton = function (gallery, imageElement) {
         ]
     };
 };
+/**
+ *
+ *
+ * @param {GalleryElement} gallery
+ * @returns {ElementConfig}
+ */
 const CloseButton = function (gallery) {
     return {
         ref: 'closeButton',
@@ -290,6 +320,11 @@ const CloseButton = function (gallery) {
         ]
     };
 };
+/**
+ *
+ *
+ * @param {GalleryElement} gallery
+ */
 const showGallery = (gallery) => {
     createGalleryElement({
         tag: 'div',
@@ -321,11 +356,14 @@ const showGallery = (gallery) => {
         ]
     }, document.body);
 };
+/**
+ *
+ *
+ */
 const loadGalleryElements = () => {
     const galleries = getGalleries();
     const buttons = getGalleryButtons();
 };
-window.addEventListener('load', loadGalleryElements);
 /**
  * Downloada the image from source url and once download updates the active image with this image data
  *
@@ -335,21 +373,27 @@ window.addEventListener('load', loadGalleryElements);
  * @param {GalleryElement} gallery
  */
 function loadGalleryImage(sourceUrl, image, refs, gallery) {
+    refs.loader.element.setAttribute('style', 'display: flex;');
+    image.setAttribute('style', 'fade-out');
     if (sourceUrl === undefined)
         throw new Error('next button should be hidden');
     image.onload = function () {
-        refs.loader.element.remove();
+        console.log('loaded');
+        refs.loader.element.setAttribute('style', 'display: none');
+        image.setAttribute('style', 'fade-in');
+        toggleButtons(gallery, refs);
     };
     image.onerror = (error) => {
-        console.log(error);
+        console.log('error', error);
     };
-    fetch(sourceUrl).then((l) => __awaiter(this, void 0, void 0, function* () {
-        const _url = yield l.blob();
-        const blobUrl = URL.createObjectURL(_url);
-        image.src = blobUrl;
-        toggleButtons(gallery, refs);
-    }));
+    image.src = sourceUrl;
 }
+/**
+ *
+ *
+ * @param {GalleryElement} gallery
+ * @param {{ [key: string]: any; }} refs
+ */
 function toggleButtons(gallery, refs) {
     if (gallery.hasImage(gallery.index + 1)) {
         refs.rightButton.element.setAttribute('style', 'display: flex;');
@@ -364,3 +408,4 @@ function toggleButtons(gallery, refs) {
         refs.leftButton.element.setAttribute('style', 'display: flex;');
     }
 }
+window.addEventListener('load', loadGalleryElements);

@@ -114,18 +114,18 @@ body {
 
 .fade-out {
     opacity: 0;
-    -webkit-transition: opacity 0.3s ease-in-out;
-    -moz-transition: opacity 0.3s ease-in-out;
-    -o-transition: opacity 0.3s ease-in-out;
-    transition: opacity 0.3s ease-in-out;
+    -webkit-transition: opacity 1.0s ease-in-out;
+    -moz-transition: opacity 1.0s ease-in-out;
+    -o-transition: opacity 1.0s ease-in-out;
+    transition: opacity 1.0s ease-in-out;
 }
 
 .fade-in {
     opacity: 1;
-    -webkit-transition: opacity 0.3s ease-in-out;
-    -moz-transition: opacity 0.3s ease-in-out;
-    -o-transition: opacity 0.3s ease-in-out;
-    transition: opacity 0.3s ease-in-out;
+    -webkit-transition: opacity 1.0s ease-in-out;
+    -moz-transition: opacity 1.0s ease-in-out;
+    -o-transition: opacity 1.0s ease-in-out;
+    transition: opacity 1.0s ease-in-out;
 }
 
 .loader-wrapper {
@@ -134,17 +134,21 @@ body {
     right: 3em;
     top: 0px;
     bottom: 0px;
-    background: black;
+    background: #111;
     z-index: 1001;
-    
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    z-index: 4000;
 }
 
 .loader {
     border: 16px solid #f3f3f3; /* Light grey */
     border-top: 16px solid #3498db; /* Blue */
     border-radius: 50%;
-    width: 120px;
-    height: 120px;
+    width: 40px;
+    height: 40px;
     animation: spin 2s linear infinite;
 }
 @keyframes spin {
