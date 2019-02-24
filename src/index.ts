@@ -250,15 +250,51 @@ const convertButtonElement = (element: Element): GalleryButton | undefined => {
     }
 }
 
-const PreviousImageButton: (gallery: GalleryElement) => ElementConfig = function (gallery: GalleryElement): ElementConfig {
+
+
+const GalleryImage: (gallery: GalleryElement, active: boolean, index: number) => ElementConfig = function (gallery: GalleryElement, active: boolean, index: number): ElementConfig {
+    return {
+        ref: active == true ? 'activeImage' : 'nextImage',
+        tag: 'img',
+        className: `gallery-image-${active ? 'active' : 'next'} ${active ? 'fade-in' : 'fade-out'}`,
+        attributes: {
+            index: index.toString()
+        },
+        onAdded: function (imageElement, refs) {
+            const elem = imageElement as HTMLImageElement
+            const index = parseInt(imageElement.getAttribute('index')!)
+            const imageUrl = gallery.imageUrls[index]
+            elem.onload = function () {
+                refs.loader.element.remove()
+            }
+            elem.onerror = (error: any) => {
+                console.log(error)
+            }
+            fetch(imageUrl).then(async (l) => {
+                const _url = await l.blob()
+                const blobUrl = URL.createObjectURL(_url)
+                elem.src = blobUrl
+                toggleButtons(gallery , refs)
+            })
+        }
+    }
+}
+
+const ActiveImage: (gallery: GalleryElement) => ElementConfig = function (gallery: GalleryElement): ElementConfig {
+    return GalleryImage(gallery, true, 0)
+}
+
+const NextImage: (gallery: GalleryElement) => ElementConfig = function (gallery: GalleryElement): ElementConfig {
+    return GalleryImage(gallery, false, 1)
+}
+
+const PreviousImageButton: (gallery: GalleryElement, imageElement: (refs: { [key:string] : any }) => HTMLImageElement) => ElementConfig = function (gallery: GalleryElement, imageElement:  (refs: { [key:string] : any }) => HTMLImageElement): ElementConfig {
     return {
         ref: 'leftButton',
         tag: 'div',
         className: 'gallery-left-button',
         onClick: (event, refs) => {
-            const prevUrl = gallery.prev()
-            if (prevUrl === undefined) throw new Error('previous button should be hidden')
-            toggleActiveImage(gallery, refs);
+            loadGalleryImage(gallery.prev(), imageElement(refs), refs, gallery);
         },
         onAdded: (element) => {
             element.setAttribute('style', 'display: none')
@@ -273,43 +309,13 @@ const PreviousImageButton: (gallery: GalleryElement) => ElementConfig = function
     }
 }
 
-const GalleryImage: (gallery: GalleryElement, active: boolean, index: number) => ElementConfig = function (gallery: GalleryElement, active: boolean, index: number): ElementConfig {
-    return {
-        ref: active == true ? 'activeImage' : 'nextImage',
-        tag: 'img',
-        className: `gallery-image-${active ? 'active' : 'next'} ${active ? 'fade-in' : 'fade-out'}`,
-        attributes: {
-            index: index.toString()
-        },
-        onAdded: function (imageElement, refs) {
-            const elem = imageElement as HTMLImageElement
-            const index = parseInt(imageElement.getAttribute('index')!)
-            if(!gallery.hasImage(index)) return 
-            elem.onload = function () {
-                refs.loader.element.remove()
-            }
-            elem.src = gallery.imageUrls[index]
-        }
-    }
-}
-
-const ActiveImage: (gallery: GalleryElement) => ElementConfig = function (gallery: GalleryElement): ElementConfig {
-    return GalleryImage(gallery, true, 0)
-}
-
-const NextImage: (gallery: GalleryElement) => ElementConfig = function (gallery: GalleryElement): ElementConfig {
-    return GalleryImage(gallery, false, 1)
-}
-
-const NextImageButton: (gallery: GalleryElement) => ElementConfig = function (gallery: GalleryElement): ElementConfig {
+const NextImageButton: (gallery: GalleryElement, imageElement: (refs: { [key:string] : any }) => HTMLImageElement) => ElementConfig = function (gallery: GalleryElement, imageElement: (refs: { [key:string] : any }) => HTMLImageElement): ElementConfig {
     return {
         ref: 'rightButton',
         tag: 'div',
         className: 'gallery-right-button',
         onClick: (event, refs) => {
-            const nextUrl = gallery.next()
-            if (nextUrl === undefined) throw new Error('next button should be hidden')
-            toggleActiveImage(gallery, refs)
+            loadGalleryImage(gallery.next(), imageElement(refs), refs, gallery);
         },
         onAdded: (element) => {
             if(!gallery.hasNextImage()) {
@@ -371,10 +377,13 @@ const showGallery = (gallery: GalleryElement) => {
                     }
                 ]
             },
-            PreviousImageButton(gallery),
-            NextImageButton(gallery),
+            PreviousImageButton(gallery, (refs: { [key:string] : any }) => {
+                return refs.activeImage.element
+            }),
+            NextImageButton(gallery, (refs: { [key:string] : any }) => {
+                return refs.activeImage.element
+            }),
             ActiveImage(gallery),
-            NextImage(gallery),
             CloseButton(gallery)
         ]
     }, document.body)
@@ -387,17 +396,32 @@ const loadGalleryElements = () => {
 
 window.addEventListener('load', loadGalleryElements)
 
-function toggleActiveImage(gallery: GalleryElement, refs: { [key: string]: any; }) {
-    switch (gallery.index % 2 === 0) {
-        case true: // active image is active
-            refs.nextImage.element.className = 'gallery-image-next fade-out';
-            refs.activeImage.element.className = 'gallery-image-next fade-in';
-            break;
-        case false: // next image is active
-            refs.nextImage.element.className = 'gallery-image-next fade-in';
-            refs.activeImage.element.className = 'gallery-image-next fade-out';
-            break;
-    }
+/**
+ * Downloada the image from source url and once download updates the active image with this image data
+ *
+ * @param {(string | undefined)} prevUrl
+ * @param {HTMLImageElement} image
+ * @param {{ [key: string]: any; }} refs
+ * @param {GalleryElement} gallery
+ */
+function loadGalleryImage(sourceUrl: string | undefined, image: HTMLImageElement, refs: { [key: string]: any; }, gallery: GalleryElement) {
+    if (sourceUrl === undefined)
+        throw new Error('next button should be hidden');
+    image.onload = function () {
+        refs.loader.element.remove();
+    };
+    image.onerror = (error: any) => {
+        console.log(error);
+    };
+    fetch(sourceUrl).then(async (l) => {
+        const _url = await l.blob();
+        const blobUrl = URL.createObjectURL(_url);
+        image.src = blobUrl;
+        toggleButtons(gallery, refs);
+    });
+}
+
+function toggleButtons(gallery: GalleryElement, refs: { [key: string]: any; }) {
     if (gallery.hasImage(gallery.index + 1)) {
         refs.rightButton.element.setAttribute('style', 'display: flex;');
     } else {

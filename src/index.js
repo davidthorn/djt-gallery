@@ -1,4 +1,12 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var GalleryKeys;
 (function (GalleryKeys) {
     GalleryKeys["id"] = "gallery-id";
@@ -184,16 +192,46 @@ const convertButtonElement = (element) => {
         gallery
     };
 };
-const PreviousImageButton = function (gallery) {
+const GalleryImage = function (gallery, active, index) {
+    return {
+        ref: active == true ? 'activeImage' : 'nextImage',
+        tag: 'img',
+        className: `gallery-image-${active ? 'active' : 'next'} ${active ? 'fade-in' : 'fade-out'}`,
+        attributes: {
+            index: index.toString()
+        },
+        onAdded: function (imageElement, refs) {
+            const elem = imageElement;
+            const index = parseInt(imageElement.getAttribute('index'));
+            const imageUrl = gallery.imageUrls[index];
+            elem.onload = function () {
+                refs.loader.element.remove();
+            };
+            elem.onerror = (error) => {
+                console.log(error);
+            };
+            fetch(imageUrl).then((l) => __awaiter(this, void 0, void 0, function* () {
+                const _url = yield l.blob();
+                const blobUrl = URL.createObjectURL(_url);
+                elem.src = blobUrl;
+                toggleButtons(gallery, refs);
+            }));
+        }
+    };
+};
+const ActiveImage = function (gallery) {
+    return GalleryImage(gallery, true, 0);
+};
+const NextImage = function (gallery) {
+    return GalleryImage(gallery, false, 1);
+};
+const PreviousImageButton = function (gallery, imageElement) {
     return {
         ref: 'leftButton',
         tag: 'div',
         className: 'gallery-left-button',
         onClick: (event, refs) => {
-            const prevUrl = gallery.prev();
-            if (prevUrl === undefined)
-                throw new Error('previous button should be hidden');
-            toggleActiveImage(gallery, refs);
+            loadGalleryImage(gallery.prev(), imageElement(refs), refs, gallery);
         },
         onAdded: (element) => {
             element.setAttribute('style', 'display: none');
@@ -207,42 +245,13 @@ const PreviousImageButton = function (gallery) {
         ]
     };
 };
-const GalleryImage = function (gallery, active, index) {
-    return {
-        ref: active == true ? 'activeImage' : 'nextImage',
-        tag: 'img',
-        className: `gallery-image-${active ? 'active' : 'next'} ${active ? 'fade-in' : 'fade-out'}`,
-        attributes: {
-            index: index.toString()
-        },
-        onAdded: function (imageElement, refs) {
-            const elem = imageElement;
-            const index = parseInt(imageElement.getAttribute('index'));
-            if (!gallery.hasImage(index))
-                return;
-            elem.onload = function () {
-                refs.loader.element.remove();
-            };
-            elem.src = gallery.imageUrls[index];
-        }
-    };
-};
-const ActiveImage = function (gallery) {
-    return GalleryImage(gallery, true, 0);
-};
-const NextImage = function (gallery) {
-    return GalleryImage(gallery, false, 1);
-};
-const NextImageButton = function (gallery) {
+const NextImageButton = function (gallery, imageElement) {
     return {
         ref: 'rightButton',
         tag: 'div',
         className: 'gallery-right-button',
         onClick: (event, refs) => {
-            const nextUrl = gallery.next();
-            if (nextUrl === undefined)
-                throw new Error('next button should be hidden');
-            toggleActiveImage(gallery, refs);
+            loadGalleryImage(gallery.next(), imageElement(refs), refs, gallery);
         },
         onAdded: (element) => {
             if (!gallery.hasNextImage()) {
@@ -301,10 +310,13 @@ const showGallery = (gallery) => {
                     }
                 ]
             },
-            PreviousImageButton(gallery),
-            NextImageButton(gallery),
+            PreviousImageButton(gallery, (refs) => {
+                return refs.activeImage.element;
+            }),
+            NextImageButton(gallery, (refs) => {
+                return refs.activeImage.element;
+            }),
             ActiveImage(gallery),
-            NextImage(gallery),
             CloseButton(gallery)
         ]
     }, document.body);
@@ -314,17 +326,31 @@ const loadGalleryElements = () => {
     const buttons = getGalleryButtons();
 };
 window.addEventListener('load', loadGalleryElements);
-function toggleActiveImage(gallery, refs) {
-    switch (gallery.index % 2 === 0) {
-        case true: // active image is active
-            refs.nextImage.element.className = 'gallery-image-next fade-out';
-            refs.activeImage.element.className = 'gallery-image-next fade-in';
-            break;
-        case false: // next image is active
-            refs.nextImage.element.className = 'gallery-image-next fade-in';
-            refs.activeImage.element.className = 'gallery-image-next fade-out';
-            break;
-    }
+/**
+ * Downloada the image from source url and once download updates the active image with this image data
+ *
+ * @param {(string | undefined)} prevUrl
+ * @param {HTMLImageElement} image
+ * @param {{ [key: string]: any; }} refs
+ * @param {GalleryElement} gallery
+ */
+function loadGalleryImage(sourceUrl, image, refs, gallery) {
+    if (sourceUrl === undefined)
+        throw new Error('next button should be hidden');
+    image.onload = function () {
+        refs.loader.element.remove();
+    };
+    image.onerror = (error) => {
+        console.log(error);
+    };
+    fetch(sourceUrl).then((l) => __awaiter(this, void 0, void 0, function* () {
+        const _url = yield l.blob();
+        const blobUrl = URL.createObjectURL(_url);
+        image.src = blobUrl;
+        toggleButtons(gallery, refs);
+    }));
+}
+function toggleButtons(gallery, refs) {
     if (gallery.hasImage(gallery.index + 1)) {
         refs.rightButton.element.setAttribute('style', 'display: flex;');
     }
