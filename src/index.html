@@ -12,21 +12,22 @@
 
     <body>
 
-        <div gallery-id="houses" gallery="h" images="/images/image1.jpeg,/images/image2.jpeg,/images/image3.jpeg,/images/image4.jpeg">
-            Gallery should be shown here
-        </div>
+        <gallery gallery-id="houses">
+            <url source="/images/image1.jpeg"/>
+            <url source="/images/image2.jpeg"/>
+            <url source="/images/image3.jpeg"/>
+            <url source="/images/image4.jpeg"/>
+        </gallery>
 
-        <div gallery-id="people" gallery="h" images="/images/people-1.jpg,/images/people-2.jpg">
-            Gallery should be shown here
-        </div>
+        <gallery gallery-id="people">
+            <url source="/images/people-1.jpg"/>
+            <url source="/images/people-2.jpg"/>
+        </gallery>
 
-        <div gallery-id="item" gallery="h" images="https://picsum.photos/2000/2000/?image=1023,https://picsum.photos/2000?image=847">
-            Gallery should be shown here
-        </div>
-
-        <div gallery="h">
-            Gallery should be shown here
-        </div>
+        <gallery gallery-id="item">
+            <url source="https://picsum.photos/2000/2000/?image=1023"/>
+            <url source="https://picsum.photos/2000/2000/?image=1027"/>
+        </gallery>
 
         <div gallery-ref="houses">
             Open Houses Gallery

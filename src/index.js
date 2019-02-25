@@ -3,7 +3,7 @@ var GalleryKeys;
 (function (GalleryKeys) {
     GalleryKeys["id"] = "gallery-id";
     GalleryKeys["image"] = "images";
-    GalleryKeys["gallery"] = "[gallery]";
+    GalleryKeys["gallery"] = "gallery";
     GalleryKeys["buttons"] = "[gallery-ref]";
     GalleryKeys["ref"] = "gallery-ref";
     GalleryKeys["leftArrowClassName"] = "left-arrow";
@@ -134,10 +134,9 @@ const elements = (list) => {
  * @returns {string[]}
  */
 const getImageUrls = (element) => {
-    const ref = element.getAttribute(GalleryKeys.image);
-    if (ref === null)
-        return [];
-    return ref.split(',');
+    return elements(element.querySelectorAll('url')).map(i => {
+        return i.getAttribute('source');
+    }).filter(i => { return i !== null; }).map(i => i);
 };
 /**
  * Convert this element to a GalleryElement object
@@ -159,7 +158,9 @@ const convertElement = (element) => {
  */
 const getGalleries = () => {
     const galleryElements = document.querySelectorAll(GalleryKeys.gallery);
-    return elements(galleryElements).map(convertElement);
+    const galleryAttrElements = document.querySelectorAll(`[${GalleryKeys.gallery}]`);
+    const galleries = elements(galleryElements).map(convertElement);
+    return galleries.concat(elements(galleryAttrElements).map(convertElement));
 };
 /**
  *
@@ -375,8 +376,10 @@ const loadGalleryElements = () => {
 function loadGalleryImage(sourceUrl, image, refs, gallery) {
     refs.loader.element.setAttribute('style', 'display: flex;');
     image.setAttribute('style', 'fade-out');
-    if (sourceUrl === undefined)
-        throw new Error('next button should be hidden');
+    if (sourceUrl === undefined) {
+        toggleButtons(gallery, refs);
+        return;
+    }
     image.onload = function () {
         console.log('loaded');
         refs.loader.element.setAttribute('style', 'display: none');

@@ -1,7 +1,7 @@
 enum GalleryKeys {
     id = "gallery-id",
     image = "images",
-    gallery = "[gallery]",
+    gallery = "gallery",
     buttons = "[gallery-ref]",
     ref = "gallery-ref",
     leftArrowClassName = 'left-arrow',
@@ -197,9 +197,9 @@ const elements = (list: NodeListOf<Element>): Element[] => {
  * @returns {string[]}
  */
 const getImageUrls = (element: Element): string[] => {
-    const ref = element.getAttribute(GalleryKeys.image)
-    if (ref === null) return []
-    return ref.split(',')
+    return elements(element.querySelectorAll('url')).map(i => {
+        return i.getAttribute('source')
+    }).filter(i => { return i !== null }).map(i => i!)
 }
 
 /**
@@ -223,7 +223,9 @@ const convertElement = (element: Element): GalleryElement => {
  */
 const getGalleries = (): GalleryElement[] => {
     const galleryElements = document.querySelectorAll(GalleryKeys.gallery)
-    return elements(galleryElements).map(convertElement)
+    const galleryAttrElements = document.querySelectorAll(`[${GalleryKeys.gallery}]`)
+    const galleries = elements(galleryElements).map(convertElement)
+    return galleries.concat(elements(galleryAttrElements).map(convertElement))
 }
 
 /**
@@ -449,8 +451,11 @@ const loadGalleryElements = () => {
 function loadGalleryImage(sourceUrl: string | undefined, image: HTMLImageElement, refs: { [key: string]: any; }, gallery: GalleryElement) {
     refs.loader.element.setAttribute('style' , 'display: flex;')
     image.setAttribute('style' , 'fade-out')
-    if (sourceUrl === undefined)
-        throw new Error('next button should be hidden');
+    if (sourceUrl === undefined) {
+        toggleButtons(gallery, refs);
+        return 
+    }
+        
     image.onload = function () {
         console.log('loaded')
         refs.loader.element.setAttribute('style' , 'display: none')
